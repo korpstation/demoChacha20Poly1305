@@ -752,9 +752,9 @@ function displayAEADStep(stepIndex) {
         html += '<div style="max-width:800px; margin:0 auto;">';
         for (let i = 0; i < 16; i++) {
             html += `<div style="display:flex; gap:8px; align-items:center; margin:6px 0; justify-content:center;">
-                <div class="byte">${step.initialState[i].toString(16).padStart(8,'0')}</div>
+                <div class="byte highlight">${step.initialState[i].toString(16).padStart(8,'0')}</div>
                 <div style="font-weight:700;">+</div>
-                <div class="byte highlight">${step.stateAfterRounds[i].toString(16).padStart(8,'0')}</div>
+                <div class="byte ">${step.stateAfterRounds[i].toString(16).padStart(8,'0')}</div>
                 <div style="font-weight:700;">=</div>
                 <div class="byte" style="background:#28a745;color:white;">${step.finalState[i].toString(16).padStart(8,'0')}</div>
             </div>`;
