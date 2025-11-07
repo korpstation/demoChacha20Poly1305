@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Démonstrateur ChaCha20-Poly1305</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Démonstrateur ChaCha20-Poly1305</h1>
+            <p>Visualisez chaque étape — ChaCha20 (rounds détaillés), Poly1305 et AEAD complet</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="chacha20">ChaCha20</button>
+            <button class="tab" data-tab="poly1305">Poly1305</button>
+            <button class="tab" data-tab="aead">AEAD (Combiné)</button>
+        </div>
+
+        <!-- ================= CHACHA20 ================= -->
+        <div class="tab-content active" id="chacha20">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="encrypt">Chiffrement</button>
+                <button class="mode-btn" data-mode="decrypt">Déchiffrement</button>
+            </div>
+
+            <div class="input-section" id="chacha20-inputs">
+                <h3>📝 Données d'entrée</h3>
+
+                <div class="input-group">
+                    <label id="chacha20-message-label">Message</label>
+                    <textarea id="chacha20-message">Hello World!</textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Clé (texte UTF simple)</label>
+                    <input id="chacha20-key-text" placeholder="Ex : my secret passphrase" />
+                    <div style="font-size:0.9rem; color:#666; margin-top:6px;">
+                        La clé texte sera convertie en hex, étendue (ou tronquée) à 32 octets.
+                    </div>
+                </div>
+
+                <div class="auto-gen-note">
+                    <strong>ℹ️ Note :</strong> Le <strong>nonce</strong> est optionnel car le système genère automatiquement     </div>
+
+                <div style="margin-top:10px;">
+                    <button class="btn btn-secondary" onclick="toggleAdvancedChacha()">⚙️ Options avancées (nonce)</button>
+                    <div id="chacha20-advanced" class="hidden" style="margin-top:8px;">
+                        <div class="input-group">
+                            <label>Nonce (96 bits / 12 octets en hex) — Optionnel :</label>
+                            <input id="chacha20-nonce" placeholder="Laisser vide pour génération automatique" />
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:12px;">
+                    <button class="btn btn-start" onclick="startChaCha20()">▶️ Démarrer la visualisation</button>
+                </div>
+            </div>
+
+            <div class="visualization-area hidden" id="chacha20-viz">
+                <div class="progress-bar"><div id="chacha20-progress" class="progress-fill" style="width:0%">0%</div></div>
+                <div class="step-title" id="chacha20-step-title">Initialisation...</div>
+                <div id="chacha20-content"></div>
+
+                <div class="controls">
+                    <button class="btn btn-secondary" id="chacha20-prev" onclick="prevStepChaCha20()" disabled>⬅️ Précédent</button>
+                    <button class="btn btn-primary" id="chacha20-next" onclick="nextStepChaCha20()">Suivant ➡️</button>
+                    <button class="btn btn-primary" id="chacha20-auto" onclick="toggleChaChaAutoplay()">▶️ Auto</button>
+                    <button class="btn btn-secondary" onclick="resetChaCha20()">🔄 Recommencer</button>
+                </div>
+            </div>
+
+            <div class="info-box hidden" id="chacha20-result"></div>
+        </div>
+
+        <!-- ================= POLY1305 ================= -->
+        <div class="tab-content" id="poly1305">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="tag">Calcul du Tag</button>
+                <button class="mode-btn" data-mode="verify">Vérification</button>
+            </div>
+
+            <div class="input-section" id="poly1305-inputs">
+                <h3>📝 Données d'entrée</h3>
+
+                <div class="input-group">
+                    <label id="poly1305-message-label">Message</label>
+                    <textarea id="poly1305-message">Hello World!</textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Clé Poly1305 (32 octets en hex)</label>
+                    <input id="poly1305-key" placeholder="Clé en hexadécimal (64 caractères)" />
+                    <div style="font-size:0.9rem; color:#666; margin-top:6px;">
+                        32 octets (256 bits) en hexadécimal.
+                    </div>
+                </div>
+
+                <div class="input-group hidden" id="poly1305-tag-input-group">
+                    <label>Tag à vérifier (16 octets en hex)</label>
+                    <input id="poly1305-tag-verify" placeholder="Tag en hexadécimal (32 caractères)" />
+                </div>
+
+                <div style="text-align:center; margin-top:12px;">
+                    <button class="btn btn-start" onclick="startPoly1305()">▶️ Démarrer la visualisation</button>
+                </div>
+            </div>
+
+            <div class="visualization-area hidden" id="poly1305-viz">
+                <div class="progress-bar"><div id="poly1305-progress" class="progress-fill" style="width:0%">0%</div></div>
+                <div class="step-title" id="poly1305-step-title">Initialisation...</div>
+                <div id="poly1305-content"></div>
+
+                <div class="controls">
+                    <button class="btn btn-secondary" id="poly1305-prev" onclick="prevStepPoly1305()" disabled>⬅️ Précédent</button>
+                    <button class="btn btn-primary" id="poly1305-next" onclick="nextStepPoly1305()">Suivant ➡️</button>
+                    <button class="btn btn-secondary" onclick="resetPoly1305()">🔄 Recommencer</button>
+                </div>
+            </div>
+
+            <div class="info-box hidden" id="poly1305-result"></div>
+        </div>
+
+        <!-- ================= AEAD ================= -->
+        <div class="tab-content" id="aead">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="encrypt">Chiffrement + Auth</button>
+                <button class="mode-btn" data-mode="decrypt">Déchiffrement + Vérif</button>
+            </div>
+
+            <div class="input-section" id="aead-inputs">
+                <h3 id="aead-input-title">📝 Données d'entrée</h3>
+
+                <!-- Champs pour le CHIFFREMENT -->
+                <div id="aead-encrypt-fields">
+                    <div class="input-group">
+                        <label>Message à chiffrer *</label>
+                        <textarea id="aead-message">Secret message</textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label>AAD (Additional Authenticated Data) — Optionnel</label>
+                        <textarea id="aead-aad" placeholder="Données authentifiées mais non chiffrées"></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Clé (texte UTF simple) *</label>
+                        <input id="aead-key-text" placeholder="Ex : my secret key" />
+                    </div>
+
+                    <div class="auto-gen-note">
+                        <strong>ℹ️ Note :</strong> Le <strong>nonce</strong> est optionnel car le système génère automatiquement
+                    </div>
+
+                    <div style="margin-top:10px;">
+                        <button class="btn btn-secondary" onclick="toggleAdvancedAEAD()">⚙️ Options avancées (nonce)</button>
+                        <div id="aead-advanced" class="hidden" style="margin-top:8px;">
+                            <div class="input-group">
+                                <label>Nonce (96 bits / 12 octets en hex) — Optionnel :</label>
+                                <input id="aead-nonce" placeholder="Laisser vide pour génération automatique" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Champs pour le DÉCHIFFREMENT -->
+                <div id="aead-decrypt-fields" class="hidden">
+                    <div class="input-group">
+                        <label>Clé (texte UTF simple) *</label>
+                        <input id="aead-key-text-decrypt" placeholder="Ex : my secret key" />
+                    </div>
+
+                    <div class="input-group">
+                        <label>Nonce (96 bits / 12 octets en hex) — Obligatoire *</label>
+                        <input id="aead-nonce-decrypt" placeholder="24 caractères hexadécimaux" />
+                        <div style="font-size:0.9rem; color:#dc3545; margin-top:6px;">
+                            ⚠️ Le nonce est obligatoire pour le déchiffrement
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Ciphertext (en hex) *</label>
+                        <textarea id="aead-ciphertext" placeholder="Texte chiffré en hexadécimal"></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Tag Poly1305 (en hex) *</label>
+                        <input id="aead-tag" placeholder="32 caractères hexadécimaux (16 octets)" />
+                    </div>
+
+                    <div class="input-group">
+                        <label>AAD (Additional Authenticated Data) — Si utilisé lors du chiffrement</label>
+                        <textarea id="aead-aad-decrypt" placeholder="Doit correspondre à l'AAD utilisé lors du chiffrement"></textarea>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:12px;">
+                    <button class="btn btn-start" onclick="startAEAD()">
+                        <span id="aead-start-btn-text">▶️ Démarrer le chiffrement</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="visualization-area hidden" id="aead-viz">
+                <div class="progress-bar"><div id="aead-progress" class="progress-fill" style="width:0%">0%</div></div>
+                <div class="step-title" id="aead-step-title">Initialisation...</div>
+                <div id="aead-content"></div>
+
+                <div class="controls">
+                    <button class="btn btn-secondary" id="aead-prev" onclick="prevStepAEAD()" disabled>⬅️ Précédent</button>
+                    <button class="btn btn-primary" id="aead-next" onclick="nextStepAEAD()">Suivant ➡️</button>
+                    <button class="btn btn-secondary" onclick="resetAEAD()">🔄 Recommencer</button>
+                </div>
+            </div>
+
+            <div class="info-box hidden" id="aead-result"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="utils.js"></script>
+    <script src="chacha20.js"></script>
+    <script src="poly1305.js"></script>
+    <script src="aead.js"></script>
+    <script>
+        // Gestion des onglets
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Gestion des modes (chiffrement/déchiffrement)
+        document.querySelectorAll('.mode-selector').forEach(selector => {
+            selector.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const parent = this.closest('.tab-content');
+                    const tabId = parent.id;
+                    
+                    selector.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Mettre à jour les labels et champs selon le mode
+                    updateModeUI(tabId, this.dataset.mode);
+                });
+            });
+        });
+
+        function updateModeUI(tabId, mode) {
+            if (tabId === 'chacha20') {
+                const messageLabel = document.getElementById('chacha20-message-label');
+                if (mode === 'decrypt') {
+                    messageLabel.textContent = 'Ciphertext (en hex)';
+                } else {
+                    messageLabel.textContent = 'Message';
+                }
+            } else if (tabId === 'poly1305') {
+                const messageLabel = document.getElementById('poly1305-message-label');
+                const tagGroup = document.getElementById('poly1305-tag-input-group');
+                if (mode === 'verify') {
+                    messageLabel.textContent = 'Message';
+                    tagGroup.classList.remove('hidden');
+                } else {
+                    messageLabel.textContent = 'Message';
+                    tagGroup.classList.add('hidden');
+                }
+            } else if (tabId === 'aead') {
+                const encryptFields = document.getElementById('aead-encrypt-fields');
+                const decryptFields = document.getElementById('aead-decrypt-fields');
+                const startBtnText = document.getElementById('aead-start-btn-text');
+                
+                if (mode === 'decrypt') {
+                    encryptFields.classList.add('hidden');
+                    decryptFields.classList.remove('hidden');
+                    startBtnText.textContent = '🔓 Démarrer le déchiffrement';
+                } else {
+                    encryptFields.classList.remove('hidden');
+                    decryptFields.classList.add('hidden');
+                    startBtnText.textContent = '🔐 Démarrer le chiffrement';
+                }
+            }
+        }
+
+        function toggleAdvancedAEAD() {
+            const advanced = document.getElementById('aead-advanced');
+            advanced.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
