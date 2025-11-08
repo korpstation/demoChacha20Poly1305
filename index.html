@@ -29,34 +29,67 @@
             <div class="input-section" id="chacha20-inputs">
                 <h3>📝 Données d'entrée</h3>
 
-                <div class="input-group">
-                    <label id="chacha20-message-label">Message</label>
-                    <textarea id="chacha20-message">Hello World!</textarea>
-                </div>
+                <!-- Champs pour le CHIFFREMENT -->
+                <div id="chacha20-encrypt-fields">
+                    <div class="input-group">
+                        <label>Message *</label>
+                        <textarea id="chacha20-message">Hello World!</textarea>
+                    </div>
 
-                <div class="input-group">
-                    <label>Clé (texte UTF simple)</label>
-                    <input id="chacha20-key-text" placeholder="Ex : my secret passphrase" />
-                    <div style="font-size:0.9rem; color:#666; margin-top:6px;">
-                        La clé texte sera convertie en hex, étendue (ou tronquée) à 32 octets.
+                    <div class="input-group">
+                        <label>Clé (texte UTF simple) *</label>
+                        <input id="chacha20-key-text" placeholder="Ex : my secret passphrase" />
+                        <div style="font-size:0.9rem; color:#666; margin-top:6px;">
+                            La clé texte sera convertie en hex, étendue (ou tronquée) à 32 octets.
+                        </div>
+                    </div>
+
+                    <div class="auto-gen-note">
+                        <strong>ℹ️ Note :</strong> Le <strong>nonce</strong> est optionnel car le système génère automatiquement un nonce aléatoire si non fourni.
+                    </div>
+
+                    <div style="margin-top:10px;">
+                        <button class="btn btn-secondary" onclick="toggleAdvancedChacha()">⚙️ Options avancées (nonce)</button>
+                        <div id="chacha20-advanced" class="hidden" style="margin-top:8px;">
+                            <div class="input-group">
+                                <label>Nonce (96 bits / 12 octets en hex) — Optionnel :</label>
+                                <input id="chacha20-nonce" placeholder="Laisser vide pour génération automatique" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="auto-gen-note">
-                    <strong>ℹ️ Note :</strong> Le <strong>nonce</strong> est optionnel car le système genère automatiquement     </div>
+                <!-- Champs pour le DÉCHIFFREMENT -->
+                <div id="chacha20-decrypt-fields" class="hidden">
+                    <div class="input-group">
+                        <label>Ciphertext (en hex) *</label>
+                        <textarea id="chacha20-ciphertext" placeholder="Texte chiffré en hexadécimal"></textarea>
+                        <div style="font-size:0.9rem; color:#666; margin-top:6px;">
+                            Le ciphertext obtenu lors du chiffrement.
+                        </div>
+                    </div>
 
-                <div style="margin-top:10px;">
-                    <button class="btn btn-secondary" onclick="toggleAdvancedChacha()">⚙️ Options avancées (nonce)</button>
-                    <div id="chacha20-advanced" class="hidden" style="margin-top:8px;">
-                        <div class="input-group">
-                            <label>Nonce (96 bits / 12 octets en hex) — Optionnel :</label>
-                            <input id="chacha20-nonce" placeholder="Laisser vide pour génération automatique" />
+                    <div class="input-group">
+                        <label>Clé (texte UTF simple) *</label>
+                        <input id="chacha20-key-text-decrypt" placeholder="Ex : my secret passphrase" />
+                        <div style="font-size:0.9rem; color:#666; margin-top:6px;">
+                            Doit être identique à la clé utilisée pour le chiffrement.
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Nonce (96 bits / 12 octets en hex) — Obligatoire *</label>
+                        <input id="chacha20-nonce-decrypt" placeholder="24 caractères hexadécimaux" />
+                        <div style="font-size:0.9rem; color:#dc3545; margin-top:6px;">
+                            ⚠️ Le nonce est obligatoire pour le déchiffrement et doit être identique à celui utilisé pour le chiffrement.
                         </div>
                     </div>
                 </div>
 
                 <div style="text-align:center; margin-top:12px;">
-                    <button class="btn btn-start" onclick="startChaCha20()">▶️ Démarrer la visualisation</button>
+                    <button class="btn btn-start" onclick="startChaCha20()">
+                        <span id="chacha20-start-btn-text">▶️ Démarrer le chiffrement</span>
+                    </button>
                 </div>
             </div>
 
@@ -128,7 +161,7 @@
         <div class="tab-content" id="aead">
             <div class="mode-selector">
                 <button class="mode-btn active" data-mode="encrypt">Chiffrement + Auth</button>
-                <button class="mode-btn" data-mode="decrypt">Déchiffrement + Vérif</button>
+                <button class="mode-btn" data-mode="decrypt">Vérification + Déchiff</button>
             </div>
 
             <div class="input-section" id="aead-inputs">
@@ -152,7 +185,7 @@
                     </div>
 
                     <div class="auto-gen-note">
-                        <strong>ℹ️ Note :</strong> Le <strong>nonce</strong> est optionnel car le système génère automatiquement
+                        <strong>ℹ️ Note :</strong> Le <strong>nonce</strong> est optionnel car le système génère automatiquement un nonce aléatoire si non fourni.
                     </div>
 
                     <div style="margin-top:10px;">
@@ -254,11 +287,18 @@
 
         function updateModeUI(tabId, mode) {
             if (tabId === 'chacha20') {
-                const messageLabel = document.getElementById('chacha20-message-label');
+                const encryptFields = document.getElementById('chacha20-encrypt-fields');
+                const decryptFields = document.getElementById('chacha20-decrypt-fields');
+                const startBtnText = document.getElementById('chacha20-start-btn-text');
+                
                 if (mode === 'decrypt') {
-                    messageLabel.textContent = 'Ciphertext (en hex)';
+                    encryptFields.classList.add('hidden');
+                    decryptFields.classList.remove('hidden');
+                    startBtnText.textContent = '🔓 Démarrer le déchiffrement';
                 } else {
-                    messageLabel.textContent = 'Message';
+                    encryptFields.classList.remove('hidden');
+                    decryptFields.classList.add('hidden');
+                    startBtnText.textContent = '🔐 Démarrer le chiffrement';
                 }
             } else if (tabId === 'poly1305') {
                 const messageLabel = document.getElementById('poly1305-message-label');
@@ -278,13 +318,18 @@
                 if (mode === 'decrypt') {
                     encryptFields.classList.add('hidden');
                     decryptFields.classList.remove('hidden');
-                    startBtnText.textContent = '🔓 Démarrer le déchiffrement';
+                    startBtnText.textContent = '🔍 Démarrer la vérification';
                 } else {
                     encryptFields.classList.remove('hidden');
                     decryptFields.classList.add('hidden');
                     startBtnText.textContent = '🔐 Démarrer le chiffrement';
                 }
             }
+        }
+
+        function toggleAdvancedChacha() {
+            const advanced = document.getElementById('chacha20-advanced');
+            advanced.classList.toggle('hidden');
         }
 
         function toggleAdvancedAEAD() {

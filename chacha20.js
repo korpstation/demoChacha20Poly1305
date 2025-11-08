@@ -282,18 +282,72 @@ function startChaCha20() {
     const modeBtn = document.querySelector('#chacha20 .mode-btn.active');
     const mode = modeBtn ? modeBtn.dataset.mode : 'encrypt';
     
-    const messageInput = document.getElementById('chacha20-message').value || '';
-    const keyTextInput = document.getElementById('chacha20-key-text').value || '';
-    let nonce = document.getElementById('chacha20-nonce').value.trim();
+    let messageInput, keyTextInput, nonce;
     
-    if (!messageInput) {
-        showError('Veuillez entrer un message');
-        return;
-    }
-    
-    if (!keyTextInput) {
-        showError('Veuillez entrer une clé');
-        return;
+    if (mode === 'encrypt') {
+        // Mode chiffrement
+        messageInput = document.getElementById('chacha20-message').value || '';
+        keyTextInput = document.getElementById('chacha20-key-text').value || '';
+        nonce = document.getElementById('chacha20-nonce').value.trim();
+        
+        if (!messageInput) {
+            showError('Veuillez entrer un message à chiffrer');
+            return;
+        }
+        
+        if (!keyTextInput) {
+            showError('Veuillez entrer une clé');
+            return;
+        }
+        
+        // Générer le nonce si vide (optionnel pour le chiffrement)
+        if (!nonce || nonce.length !== 24) {
+            nonce = bytesToHex(generateRandomNonce());
+        } else {
+            // Valider le nonce fourni
+            const nonceValidation = validateHexNonce(nonce);
+            if (!nonceValidation.valid) {
+                showError(nonceValidation.error);
+                return;
+            }
+        }
+        
+    } else {
+        // Mode déchiffrement
+        const ciphertextInput = document.getElementById('chacha20-ciphertext').value || '';
+        keyTextInput = document.getElementById('chacha20-key-text-decrypt').value || '';
+        nonce = document.getElementById('chacha20-nonce-decrypt').value.trim();
+        
+        if (!ciphertextInput) {
+            showError('Veuillez entrer le ciphertext à déchiffrer');
+            return;
+        }
+        
+        if (!keyTextInput) {
+            showError('Veuillez entrer la clé de déchiffrement');
+            return;
+        }
+        
+        // Le nonce est OBLIGATOIRE pour le déchiffrement
+        if (!nonce || nonce.length === 0) {
+            showError('Le nonce est obligatoire pour le déchiffrement. Il doit être identique à celui utilisé pour le chiffrement.');
+            return;
+        }
+        
+        // Valider le nonce
+        const nonceValidation = validateHexNonce(nonce);
+        if (!nonceValidation.valid) {
+            showError(nonceValidation.error);
+            return;
+        }
+        
+        // Valider et convertir le ciphertext
+        try {
+            messageInput = ciphertextInput;
+        } catch (e) {
+            showError('Le ciphertext doit être en hexadécimal valide');
+            return;
+        }
     }
     
     // Convertir le message selon le mode
@@ -312,18 +366,6 @@ function startChaCha20() {
     
     // Normaliser la clé
     const normalized = normalizeKeyTextTo32Bytes(keyTextInput);
-    
-    // Générer le nonce si vide
-    if (!nonce || nonce.length !== 24) {
-        nonce = bytesToHex(generateRandomNonce());
-    }
-    
-    // Validation du nonce
-    const nonceValidation = validateHexNonce(nonce);
-    if (!nonceValidation.valid) {
-        showError(nonceValidation.error);
-        return;
-    }
     
     chacha20State = {
         currentStep: 0,
@@ -363,7 +405,7 @@ function displayChaCha20Step(stepIndex) {
     
     if (step.type === 'config') {
         html += displayOperation('🔧 Configuration', `
-            <p><strong>Mode:</strong> ${step.mode === 'encrypt' ? 'Chiffrement' : 'Déchiffrement'}</p>
+            <p><strong>Mode:</strong> ${step.mode === 'encrypt' ? '🔐 Chiffrement' : '🔓 Déchiffrement'}</p>
             <p><strong>${step.mode === 'encrypt' ? 'Message' : 'Ciphertext (hex)'}:</strong></p>
             <pre>${step.messageText}</pre>
             <p><strong>Clé texte fournie:</strong> "${step.keyText || '(vide)'}"</p>
@@ -373,7 +415,8 @@ function displayChaCha20Step(stepIndex) {
             <p><strong>Nonce (12 octets en hex):</strong></p>
             ${displayBytes(hexToBytes(step.nonce))}
             <div class="info-box" style="margin-top:8px;">
-                <strong>ℹ️ Rappel:</strong> ChaCha20 utilise la même opération pour chiffrer et déchiffrer (XOR).
+                <strong>ℹ️ Rappel:</strong> ChaCha20 utilise la même opération pour chiffrer et déchiffrer (XOR avec le flux de clé).
+                ${step.mode === 'decrypt' ? '<br><strong>⚠️ Important:</strong> La clé et le nonce doivent être identiques à ceux utilisés pour le chiffrement.' : ''}
             </div>
         `);
     }
@@ -487,7 +530,7 @@ function displayChaCha20Step(stepIndex) {
     }
     else if (step.type === 'add-initial') {
         html += displayOperation('➕ Addition de l\'état initial', 
-            '<p>Addition modulo 2³² de chaque mot : final[i] = (working[i]350 + initial[i]) mod 2³²</p>');
+            '<p>Addition modulo 2³² de chaque mot : final[i] = (working[i] + initial[i]) mod 2³²</p>');
         
         // AFFICHAGE MATRICIEL AMÉLIORÉ
         html += '<div class="matrix-addition-container">';
@@ -541,7 +584,7 @@ function displayChaCha20Step(stepIndex) {
         
         html += '<div style="text-align:center; font-size:1.2rem; margin:8px;">=</div>';
         
-        html += `<div><strong>${isEncrypt ? 'Ciphertext' : 'Message'} (hex):</strong></div>`;
+        html += `<div><strong>${isEncrypt ? 'Ciphertext' : 'Message déchiffré'} (hex):</strong></div>`;
         html += displayBytes(step.result);
         
         // Résultat final
@@ -550,12 +593,19 @@ function displayChaCha20Step(stepIndex) {
         if (isEncrypt) {
             resultEl.innerHTML = `
                 <h3>✅ Chiffrement ChaCha20 terminé</h3>
-                <p><strong>Message:</strong></p>
+                <p><strong>Message original:</strong></p>
                 <pre>"${bytesToText(step.message)}"</pre>
                 <p><strong>Ciphertext (hex):</strong></p>
                 <pre>${bytesToHex(step.result)}</pre>
+                <p><strong>Nonce utilisé (conservez-le pour le déchiffrement):</strong></p>
+                <pre>${chacha20State.nonce}</pre>
                 <div class="info-box" style="margin-top:8px;">
-                    <strong>🔐 Info:</strong> Pour déchiffrer, utilisez le même flux de clé (même clé/nonce/compteur).
+                    <strong>🔐 Important:</strong> Pour déchiffrer, vous aurez besoin de:
+                    <ul style="margin-top:8px;">
+                        <li>La même clé ("${chacha20State.keyText}")</li>
+                        <li>Le même nonce (${chacha20State.nonce})</li>
+                        <li>Le ciphertext ci-dessus</li>
+                    </ul>
                 </div>
             `;
         } else {
@@ -567,6 +617,7 @@ function displayChaCha20Step(stepIndex) {
                 <pre>"${bytesToText(step.result)}"</pre>
                 <div class="info-box" style="margin-top:8px;">
                     <strong>🔓 Info:</strong> Le déchiffrement utilise la même opération XOR que le chiffrement.
+                    La symétrie de l'opération XOR permet de retrouver le message original.
                 </div>
             `;
         }
@@ -714,7 +765,7 @@ function toggleChaChaAutoplay() {
                         }
                     }, 400);
                 }
-            }, 5); // 5ms entre chaque opération
+            }, 500); // 500ms entre chaque opération
         }
         
         // Démarrer
